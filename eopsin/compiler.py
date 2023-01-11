@@ -8,6 +8,7 @@ from .rewrite_import_plutusdata import RewriteImportPlutusData
 from .rewrite_import_dataclasses import RewriteImportDataclasses
 from .rewrite_import_typing import RewriteImportTyping
 from .rewrite_import import RewriteImport
+from .rewrite_in import RewriteIn
 
 import pluthon as plt
 
@@ -566,6 +567,7 @@ def compile(prog: AST):
         # The remaining order is almost arbitrary
         RewriteAugAssign,
         RewriteTupleAssign,
+        RewriteIn,
         RewriteImportPlutusData,
         RewriteImportTyping,
         RewriteImportDataclasses,

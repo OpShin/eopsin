@@ -2,9 +2,11 @@ from eopsin.prelude import *
 
 
 @dataclass()
-class D2(PlutusData):
-    list_field: List[DatumHash]
+class HashDatum(PlutusData):
+    valid_hashes: List[DatumHash]
 
 
-def validator(d: D2) -> bool:
-    return b"\x01" == d.list_field[0]
+def validator(d: HashDatum) -> bool:
+    if b"\x01" in d.valid_hashes:
+        print("Valid hash somewhere inside")
+    return b"\x01" == d.valid_hashes[0]
