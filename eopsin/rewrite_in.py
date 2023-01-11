@@ -2,7 +2,8 @@ from ast import *
 import typing
 
 """
-Rewrites all occurences of assignments to tuples to assignments to single values
+Rewrites all occurences of in to a for loop
+TODO alternative: efficiently compile to uplc in compiler.py
 """
 
 
