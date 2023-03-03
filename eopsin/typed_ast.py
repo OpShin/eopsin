@@ -75,11 +75,58 @@ class AtomicType(ClassType):
         return isinstance(other, self.__class__)
 
 
+class PolymorphicFunction:
+    def type_from_args(self, args: typing.List[Type]) -> FunctionType:
+        raise NotImplementedError()
+
+    def impl_from_args(self, args: typing.List[Type]) -> plt.AST:
+        raise NotImplementedError()
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class PolymorphicFunctionType(ClassType):
+    """A special type of builtin that may act differently on different parameters"""
+
+    polymorphic_function: PolymorphicFunction
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class InstanceType(Type):
+    typ: ClassType
+
+    def constr_type(self) -> FunctionType:
+        raise TypeInferenceError(f"Can not construct an instance {self}")
+
+    def constr(self) -> plt.AST:
+        raise NotImplementedError(f"Can not construct an instance {self}")
+
+    def attribute_type(self, attr) -> Type:
+        return self.typ.attribute_type(attr)
+
+    def attribute(self, attr) -> plt.AST:
+        return self.typ.attribute(attr)
+
+    def cmp(self, op: cmpop, o: "Type") -> plt.AST:
+        """The implementation of comparing this type to type o via operator op. Returns a lambda that expects as first argument the object itself and as second the comparison."""
+        if isinstance(o, InstanceType):
+            return self.typ.cmp(op, o.typ)
+        return super().cmp(op, o)
+
+    def __ge__(self, other):
+        return isinstance(other, InstanceType) and self.typ >= other.typ
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class PolymorphicFunctionInstanceType(InstanceType):
+    typ: FunctionType
+    polymorphic_function: PolymorphicFunction
+
+
 @dataclass(frozen=True, unsafe_hash=True)
 class RecordType(ClassType):
     record: Record
 
-    def constr_type(self) -> "InstanceType":
+    def constr_type(self) -> InstanceType:
         return InstanceType(
             FunctionType([f[1] for f in self.record.fields], InstanceType(self))
         )
@@ -385,30 +432,111 @@ class FunctionType(ClassType):
         )
 
 
-@dataclass(frozen=True, unsafe_hash=True)
-class InstanceType(Type):
-    typ: ClassType
+class IntegerConstructor(PolymorphicFunction):
+    def type_from_args(self, args: typing.List[Type]) -> FunctionType:
+        if len(args) == 1 and args[0] in (StringInstanceType, BoolInstanceType):
+            return FunctionType([args[0]], IntegerInstanceType)
+        return super().type_from_args(args)
 
-    def constr_type(self) -> FunctionType:
-        raise TypeInferenceError(f"Can not construct an instance {self}")
-
-    def constr(self) -> plt.AST:
-        raise NotImplementedError(f"Can not construct an instance {self}")
-
-    def attribute_type(self, attr) -> Type:
-        return self.typ.attribute_type(attr)
-
-    def attribute(self, attr) -> plt.AST:
-        return self.typ.attribute(attr)
-
-    def cmp(self, op: cmpop, o: "Type") -> plt.AST:
-        """The implementation of comparing this type to type o via operator op. Returns a lambda that expects as first argument the object itself and as second the comparison."""
-        if isinstance(o, InstanceType):
-            return self.typ.cmp(op, o.typ)
-        return super().cmp(op, o)
-
-    def __ge__(self, other):
-        return isinstance(other, InstanceType) and self.typ >= other.typ
+    def impl_from_args(self, args: typing.List[Type]) -> plt.AST:
+        if len(args) == 1:
+            if args[0] == BoolInstanceType:
+                return plt.Lambda(
+                    ["x", "_"],
+                    plt.IfThenElse(plt.Var("x"), plt.Integer(1), plt.Integer(0)),
+                )
+            if args[0] == StringInstanceType:
+                return plt.Lambda(
+                    ["x", "_"],
+                    plt.Let(
+                        [
+                            ("e", plt.EncodeUtf8(plt.Var("x"))),
+                            (
+                                "first_int",
+                                plt.IndexByteString(plt.Var("e"), plt.Integer(0)),
+                            ),
+                            ("len", plt.LengthOfByteString(plt.Var("e"))),
+                            (
+                                "fold_start",
+                                plt.Lambda(
+                                    ["start"],
+                                    plt.FoldList(
+                                        plt.Range(plt.Var("len"), plt.Var("start")),
+                                        plt.Lambda(
+                                            ["s", "i"],
+                                            plt.Let(
+                                                [
+                                                    (
+                                                        "b",
+                                                        plt.IndexByteString(
+                                                            plt.Var("e"), plt.Var("i")
+                                                        ),
+                                                    )
+                                                ],
+                                                plt.Ite(
+                                                    plt.EqualsInteger(
+                                                        plt.Var("b"),
+                                                        plt.Integer(ord("_")),
+                                                    ),
+                                                    plt.Var("s"),
+                                                    plt.Ite(
+                                                        plt.Or(
+                                                            plt.LessThanInteger(
+                                                                plt.Var("b"),
+                                                                plt.Integer(ord("0")),
+                                                            ),
+                                                            plt.LessThanInteger(
+                                                                plt.Integer(ord("9")),
+                                                                plt.Var("b"),
+                                                            ),
+                                                        ),
+                                                        plt.TraceError(
+                                                            "ValueError: invalid literal for int() with base 10"
+                                                        ),
+                                                        plt.AddInteger(
+                                                            plt.SubtractInteger(
+                                                                plt.Var("b"),
+                                                                plt.Integer(ord("0")),
+                                                            ),
+                                                            plt.MultiplyInteger(
+                                                                plt.Var("s"),
+                                                                plt.Integer(10),
+                                                            ),
+                                                        ),
+                                                    ),
+                                                ),
+                                            ),
+                                        ),
+                                        plt.Integer(0),
+                                    ),
+                                ),
+                            ),
+                        ],
+                        plt.Ite(
+                            plt.Or(
+                                plt.EqualsInteger(plt.Var("len"), plt.Integer(0)),
+                                plt.EqualsInteger(
+                                    plt.Var("first_int"),
+                                    plt.Integer(ord("_")),
+                                ),
+                            ),
+                            plt.TraceError(
+                                "ValueError: invalid literal for int() with base 10"
+                            ),
+                            plt.Ite(
+                                plt.EqualsInteger(
+                                    plt.Var("first_int"),
+                                    plt.Integer(ord("-")),
+                                ),
+                                plt.Negate(
+                                    plt.Apply(plt.Var("fold_start"), plt.Integer(1)),
+                                ),
+                                plt.Apply(plt.Var("fold_start"), plt.Integer(0)),
+                            ),
+                        ),
+                    ),
+                )
+        return super().type_from_args(args)
 
 
 @dataclass(frozen=True, unsafe_hash=True)
@@ -813,27 +941,6 @@ class InaccessibleType(ClassType):
     """A type that blocks overwriting of a function"""
 
     pass
-
-
-class PolymorphicFunction:
-    def type_from_args(self, args: typing.List[Type]) -> FunctionType:
-        raise NotImplementedError()
-
-    def impl_from_args(self, args: typing.List[Type]) -> plt.AST:
-        raise NotImplementedError()
-
-
-@dataclass(frozen=True, unsafe_hash=True)
-class PolymorphicFunctionType(ClassType):
-    """A special type of builtin that may act differently on different parameters"""
-
-    polymorphic_function: PolymorphicFunction
-
-
-@dataclass(frozen=True, unsafe_hash=True)
-class PolymorphicFunctionInstanceType(InstanceType):
-    typ: FunctionType
-    polymorphic_function: PolymorphicFunction
 
 
 class TypedAST(AST):
