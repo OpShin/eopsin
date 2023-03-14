@@ -1,3 +1,8 @@
+"""
+You can also define lists as
+attributes for datums
+
+"""
 from eopsin.prelude import *
 
 

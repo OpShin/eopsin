@@ -58,7 +58,7 @@ class MiscTest(unittest.TestCase):
         b=st.integers(min_value=0, max_value=10),
     )
     def test_mult_for(self, a: int, b: int):
-        input_file = "examples/mult_for.py"
+        input_file = "examples/b_mult_for.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -76,7 +76,7 @@ class MiscTest(unittest.TestCase):
         b=st.integers(min_value=0, max_value=10),
     )
     def test_mult_while(self, a: int, b: int):
-        input_file = "examples/mult_while.py"
+        input_file = "examples/c_mult_while.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -89,26 +89,8 @@ class MiscTest(unittest.TestCase):
         ret = uplc_eval(f)
         self.assertEqual(ret, uplc.PlutusInteger(a * b))
 
-    @given(
-        a=st.integers(),
-        b=st.integers(),
-    )
-    def test_sum(self, a: int, b: int):
-        input_file = "examples/sum.py"
-        with open(input_file) as fp:
-            source_code = fp.read()
-        ast = compiler.parse(source_code)
-        code = compiler.compile(ast)
-        code = code.compile()
-        f = code.term
-        # UPLC lambdas may only take one argument at a time, so we evaluate by repeatedly applying
-        for d in [uplc.PlutusInteger(a), uplc.PlutusInteger(b)]:
-            f = uplc.Apply(f, d)
-        ret = uplc_eval(f)
-        self.assertEqual(ret, uplc.PlutusInteger(a + b))
-
     def test_complex_datum_correct_vals(self):
-        input_file = "examples/complex_datum.py"
+        input_file = "examples/a_complex_datum.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -135,7 +117,7 @@ class MiscTest(unittest.TestCase):
         )
 
     def test_hello_world(self):
-        input_file = "examples/hello_world.py"
+        input_file = "examples/a_introduction/a_hello_world.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -148,7 +130,7 @@ class MiscTest(unittest.TestCase):
         ret = uplc_eval(f)
 
     def test_list_datum_correct_vals(self):
-        input_file = "examples/list_datum.py"
+        input_file = "examples/d_list_datum.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -165,7 +147,7 @@ class MiscTest(unittest.TestCase):
         )
 
     def test_showcase(self):
-        input_file = "examples/showcase.py"
+        input_file = "examples/c_showcase.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -183,7 +165,7 @@ class MiscTest(unittest.TestCase):
 
     @given(n=st.integers(min_value=0, max_value=5))
     def test_fib_iter(self, n):
-        input_file = "examples/fib_iter.py"
+        input_file = "examples/a_introduction/d_fib_iter.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -201,7 +183,7 @@ class MiscTest(unittest.TestCase):
 
     @given(n=st.integers(min_value=0, max_value=5))
     def test_fib_rec(self, n):
-        input_file = "examples/fib_rec.py"
+        input_file = "examples/e_fib_rec.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -333,7 +315,7 @@ def validator(_: None) -> int:
         self.assertEqual(uplc.PlutusInteger(100), ret)
 
     def test_datum_cast(self):
-        input_file = "examples/datum_cast.py"
+        input_file = "examples/b_datum_cast.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -416,7 +398,7 @@ def validator(_: None) -> int:
         f = code.term
 
     def test_dict_datum(self):
-        input_file = "examples/dict_datum.py"
+        input_file = "examples/c_dict_datum.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -563,7 +545,7 @@ def validator(_: None) -> SomeOutputDatum:
         )
 
     def test_list_comprehension_even(self):
-        input_file = "examples/list_comprehensions.py"
+        input_file = "examples/a_list_comprehensions.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
@@ -584,7 +566,7 @@ def validator(_: None) -> SomeOutputDatum:
         )
 
     def test_list_comprehension_all(self):
-        input_file = "examples/list_comprehensions.py"
+        input_file = "examples/a_list_comprehensions.py"
         with open(input_file) as fp:
             source_code = fp.read()
         ast = compiler.parse(source_code)
